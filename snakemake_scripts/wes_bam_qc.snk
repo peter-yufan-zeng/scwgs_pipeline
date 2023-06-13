@@ -1,0 +1,50 @@
+###
+### QC On BAM FILES
+###
+rule samtools_stats:
+	input:
+		bam = OUTDIR +"/Recal/{sample}.recal.bam",
+		index = OUTDIR +"/Recal/{sample}.recal.bai",
+		bed = EXOME_BED
+	output:
+		stats = OUTDIR + "/QC/samtools_stats/{sample}/{sample}.samtools.stats.out"
+	threads: 2
+	resources:
+		time = 1*60,
+		mem_mb = 8000
+	container:
+		config["singularity"]["samtools"]
+	group: "qc_samtools_stats"
+	shell:
+		"""
+		samtools stats -t {input.bed} {input.bam} > {output}
+		"""
+
+rule bamqc:
+	input:
+		bam = OUTDIR +"/Recal/{sample}.recal.bam",
+		index = OUTDIR +"/Recal/{sample}.recal.bai",
+		bed = EXOME_BED
+	output:
+		stats = OUTDIR + "/QC/bamqc/{sample}/qualimapReport.html"
+	threads: 12
+	resources:
+		time = 1*60,
+		mem_mb = 30000
+	group: "qc_bamqc"
+	container:
+		config["singularity"]["qualimap"]
+	shell:
+		"""
+		qualimap --java-mem-size=20G \
+		bamqc \
+		-bam {input.bam} \
+		--feature-file {input.bed} \
+		--paint-chromosome-limits \
+		--genome-gc-distr HUMAN \
+		-nt {threads} \
+		-skip-duplicated \
+		--skip-dup-mode 0 \
+		-outdir {OUTDIR}/QC/bamqc/{wildcards.sample}/ \
+		-outformat HTML
+		"""

@@ -1,0 +1,54 @@
+### This script takes a bam file mapped to genome, get the unmapped reads, and then uses kraken2 to search for reads containing to viruses and bacteria
+
+###
+
+rule kraken:
+	input:
+		i1 = OUTDIR + "/align/{sample}_unmapped_R1.fq",
+		i2 = OUTDIR + "/align/{sample}_unmapped_R2.fq"
+	output:
+		out = OUTDIR + "/kraken2/{sample}_kraken2.out",
+		report = OUTDIR + "/kraken2/{sample}_kraken2.report"
+	threads: 20
+	group: "kraken"
+	container:
+		config["singularity"]["kraken2"]
+	params:
+		kraken2_ref = config["reference"]["directory"] + config["reference"]["kraken2_ref"]
+	resources:
+		time = 15,
+		mem_mb = 30000
+	shell:
+		"""
+		kraken2 --db {params.kraken2_ref} \
+		--output {output.out} \
+		--report {output.report} \
+		--paired \
+		--use-names \
+		--threads {threads} \
+		{input}
+		"""
+
+rule bracken:
+	input:
+		out = OUTDIR + "/kraken2/{sample}_kraken2.out",
+		report = OUTDIR + "/kraken2/{sample}_kraken2.report"
+	output:
+		out = OUTDIR + "/kraken2/bracken/{sample}_bracken2.out",
+		report = OUTDIR + "/kraken2/bracken/{sample}_bracken2.report"
+	group: "kraken"
+	threads: 1
+	resources:
+		time = 10,
+		mem_mb = 12000
+	container:
+		config["singularity"]["bracken2"]
+	params:
+		kraken2_ref = config["reference"]["directory"] + config["reference"]["kraken2_ref"]
+	shell:
+		"""
+		bracken -d {params.kraken2_ref} \
+		-i {input.report} \
+		-o {output.out} \
+		-w {output.report}
+		"""
